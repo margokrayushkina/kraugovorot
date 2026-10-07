@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 
 interface QuizProps {
   onClose: () => void;
@@ -12,24 +12,32 @@ interface SlotState {
   isCorrect: boolean | null;
 }
 
-const initialSlots: SlotState[] = [
+const INITIAL_SLOTS: SlotState[] = [
   { id: 'slot1', correctAnswer: 'Испарение', label: 'Вода → Пар ↑', filledAnswer: null, isCorrect: null },
   { id: 'slot2', correctAnswer: 'Конденсация', label: 'Пар → Облака ☁️', filledAnswer: null, isCorrect: null },
   { id: 'slot3', correctAnswer: 'Осадки', label: 'Облака → Дождь 🌧️', filledAnswer: null, isCorrect: null },
   { id: 'slot4', correctAnswer: 'Сток', label: 'Река → Океан 🌊', filledAnswer: null, isCorrect: null },
 ];
 
-const answers = ['Испарение', 'Конденсация', 'Осадки', 'Сток', 'Инфильтрация', 'Транспирация'];
+const ANSWERS = ['Испарение', 'Конденсация', 'Осадки', 'Сток', 'Инфильтрация', 'Транспирация'];
 
 export default function Quiz({ onClose }: QuizProps) {
-  const [slots, setSlots] = useState<SlotState[]>(initialSlots);
+  const [slots, setSlots] = useState<SlotState[]>(INITIAL_SLOTS);
   const [draggedAnswer, setDraggedAnswer] = useState<string | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
   const [score, setScore] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+
+  // Список ответов, которые уже размещены в слотах
+  const usedAnswers = slots
+    .map(s => s.filledAnswer)
+    .filter((a): a is string => a !== null);
+
+  const isAnswerUsed = (answer: string) => usedAnswers.includes(answer);
 
   const handleDragStart = (answer: string) => {
+    if (isAnswerUsed(answer)) return;
     setDraggedAnswer(answer);
   };
 
@@ -44,9 +52,15 @@ export default function Quiz({ onClose }: QuizProps) {
 
   const handleDrop = (slotId: string) => {
     if (!draggedAnswer) return;
+    // Не позволяем разместить уже использованный ответ в новый слот
+    if (isAnswerUsed(draggedAnswer)) {
+      setDraggedAnswer(null);
+      setDragOverSlot(null);
+      return;
+    }
 
     setSlots(prev => prev.map(slot => {
-      if (slot.id === slotId) {
+      if (slot.id === slotId && !slot.filledAnswer) {
         const isCorrect = slot.correctAnswer === draggedAnswer;
         return { ...slot, filledAnswer: draggedAnswer, isCorrect };
       }
@@ -57,10 +71,10 @@ export default function Quiz({ onClose }: QuizProps) {
     setDragOverSlot(null);
   };
 
-  // Для мобильных устройств — тап для выбора
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-
   const handleAnswerClick = (answer: string) => {
+    // Блокируем выбор уже использованного ответа
+    if (isAnswerUsed(answer)) return;
+
     if (selectedAnswer === answer) {
       setSelectedAnswer(null);
     } else {
@@ -70,6 +84,11 @@ export default function Quiz({ onClose }: QuizProps) {
 
   const handleSlotClick = (slotId: string) => {
     if (!selectedAnswer) return;
+    // Дополнительная проверка: не размещать уже использованный ответ
+    if (isAnswerUsed(selectedAnswer)) {
+      setSelectedAnswer(null);
+      return;
+    }
 
     setSlots(prev => prev.map(slot => {
       if (slot.id === slotId && !slot.filledAnswer) {
@@ -88,6 +107,11 @@ export default function Quiz({ onClose }: QuizProps) {
       }
       return slot;
     }));
+    // Если проверяли результат — сбрасываем
+    if (score !== null) {
+      setScore(null);
+      setShowSuccess(false);
+    }
   };
 
   const checkAnswers = () => {
@@ -99,14 +123,14 @@ export default function Quiz({ onClose }: QuizProps) {
   };
 
   const resetQuiz = () => {
-    setSlots(initialSlots);
+    // Создаём новый массив, чтобы избежать проблем с ссылками
+    setSlots(INITIAL_SLOTS.map(s => ({ ...s })));
     setScore(null);
     setShowSuccess(false);
     setSelectedAnswer(null);
   };
 
   const allFilled = slots.every(s => s.filledAnswer !== null);
-  const usedAnswers = slots.filter(s => s.filledAnswer).map(s => s.filledAnswer!);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -133,12 +157,11 @@ export default function Quiz({ onClose }: QuizProps) {
         </div>
 
         {/* Схема */}
-        <div className="px-5 py-3 flex-1 overflow-y-auto" ref={containerRef}>
-          {/* Циклическая схема */}
+        <div className="px-5 py-3 flex-1 overflow-y-auto">
           <div className="relative bg-gradient-to-b from-sky-100 to-green-50 rounded-xl p-4 md:p-6 min-h-[300px]">
-            {/* Стрелки цикла (визуально) */}
+            {/* Стрелки цикла */}
             <div className="hidden md:block absolute inset-0 pointer-events-none">
-              <svg className="w-full h-full" viewBox="0 0 400 250">
+              <svg className="w-full h-full" viewBox="0 0 400 250" preserveAspectRatio="none">
                 <defs>
                   <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
                     <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
@@ -167,17 +190,14 @@ export default function Quiz({ onClose }: QuizProps) {
                   onDrop={() => handleDrop(slot.id)}
                   onClick={() => handleSlotClick(slot.id)}
                 >
-                  {/* Номер этапа */}
                   <div className="absolute -top-3 -left-2 w-7 h-7 bg-gray-700 text-white rounded-full flex items-center justify-center text-sm font-bold">
                     {index + 1}
                   </div>
 
-                  {/* Описание */}
                   <p className="text-xs md:text-sm text-gray-500 text-center mb-2 font-medium">
                     {slot.label}
                   </p>
 
-                  {/* Заполненный ответ */}
                   {slot.filledAnswer ? (
                     <div
                       className={`px-3 py-1.5 rounded-lg text-sm font-bold text-center ${
@@ -186,6 +206,7 @@ export default function Quiz({ onClose }: QuizProps) {
                         'bg-gray-200 text-gray-700'
                       }`}
                       onClick={(e) => { e.stopPropagation(); handleClearSlot(slot.id); }}
+                      title="Нажмите, чтобы убрать ответ"
                     >
                       {slot.filledAnswer}
                       {slot.isCorrect === true && ' ✓'}
@@ -203,21 +224,25 @@ export default function Quiz({ onClose }: QuizProps) {
 
           {/* Варианты ответов */}
           <div className="mt-5">
-            <p className="text-sm text-gray-500 mb-2 text-center font-medium">Варианты ответов (нажмите или перетащите):</p>
+            <p className="text-sm text-gray-500 mb-2 text-center font-medium">
+              Варианты ответов {selectedAnswer && <span className="text-blue-500">(выбрано: {selectedAnswer})</span>}
+            </p>
             <div className="flex flex-wrap gap-2 justify-center">
-              {answers.map(answer => {
-                const isUsed = usedAnswers.includes(answer);
+              {ANSWERS.map(answer => {
+                const used = isAnswerUsed(answer);
                 const isSelected = selectedAnswer === answer;
                 return (
                   <div
                     key={answer}
-                    draggable={!isUsed}
+                    draggable={!used}
                     onDragStart={() => handleDragStart(answer)}
-                    onClick={() => !isUsed && handleAnswerClick(answer)}
-                    className={`px-4 py-2.5 rounded-xl text-sm md:text-base font-bold cursor-grab active:cursor-grabbing transition-all min-h-[44px] select-none ${
-                      isUsed ? 'bg-gray-100 text-gray-300 cursor-not-allowed' :
-                      isSelected ? 'bg-blue-500 text-white shadow-lg scale-105 ring-2 ring-blue-300' :
-                      'bg-gradient-to-r from-blue-100 to-purple-100 text-gray-700 hover:from-blue-200 hover:to-purple-200 hover:scale-105 shadow-sm'
+                    onClick={() => handleAnswerClick(answer)}
+                    className={`px-4 py-3 rounded-xl text-sm md:text-base font-bold transition-all min-h-[60px] select-none ${
+                      used
+                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed line-through'
+                        : isSelected
+                        ? 'bg-blue-500 text-white shadow-lg scale-105 ring-2 ring-blue-300 cursor-pointer'
+                        : 'bg-gradient-to-r from-blue-100 to-purple-100 text-gray-700 hover:from-blue-200 hover:to-purple-200 hover:scale-105 shadow-sm cursor-grab active:cursor-grabbing'
                     }`}
                   >
                     {answer}

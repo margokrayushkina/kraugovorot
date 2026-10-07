@@ -44,7 +44,7 @@ export default function ControlPanel({
           <button
             key={p.id}
             onClick={() => onHighlightProcess(highlightProcess === p.id ? null : p.id)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 min-h-[40px] min-w-[60px] ${
+            className={`px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 min-h-[60px] min-w-[60px] ${
               highlightProcess === p.id
                 ? `${p.color} text-white shadow-lg scale-105`
                 : 'bg-white/10 hover:bg-white/20 text-gray-200'
@@ -56,7 +56,7 @@ export default function ControlPanel({
         {highlightProcess && (
           <button
             onClick={() => onHighlightProcess(null)}
-            className="px-3 py-1.5 rounded-full text-sm bg-red-500/70 hover:bg-red-500 text-white min-h-[40px]"
+            className="px-3 py-2 rounded-full text-sm bg-red-500/70 hover:bg-red-500 text-white min-h-[60px]"
           >
             ✕ Сброс
           </button>

@@ -18,7 +18,7 @@ export default function App() {
   const [highlightProcess, setHighlightProcess] = useState<string | null>(null);
   const [infoPanelData, setInfoPanelData] = useState<InfoData | null>(null);
 
-  const { playClick, playSuccess, playError } = useAudio();
+  const { playClick } = useAudio();
 
   const handleElementClick = useCallback((elementId: string) => {
     const data = infoData[elementId];
