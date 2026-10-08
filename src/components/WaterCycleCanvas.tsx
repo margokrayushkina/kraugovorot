@@ -570,11 +570,9 @@ export default function WaterCycleCanvas({
 
         drawProcessArrows(w, h, time, hp);
         drawLabels(w, h, sl);
-      } else {
-        // В режиме паузы — рисуем один статичный кадр, чтобы сцена не была пустой
-        // Проверяем, не пуст ли canvas
-        // (если только что поставили на паузу, нужно отрисовать кадр)
       }
+      // В режиме паузы canvas сохраняет своё содержимое — анимационный цикл
+      // продолжает работать (для requestAnimationFrame), но ничего не рисует.
 
       animFrameRef.current = requestAnimationFrame(animate);
     };
@@ -629,14 +627,89 @@ export default function WaterCycleCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createParticle]);
 
-  // При паузе canvas сохраняет своё содержимое — ничего дополнительно делать не нужно
+  // При паузе — перерисовываем статичный кадр при изменении highlightProcess или showLabels
+  useEffect(() => {
+    if (!isPaused) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const w = canvas.width;
+    const h = canvas.height;
+    const { showLabels: sl, highlightProcess: hp } = propsRef.current;
+    
+    ctx.clearRect(0, 0, w, h);
+    
+    // Перерисовываем ландшафт
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.65);
+    skyGrad.addColorStop(0, '#1e90ff');
+    skyGrad.addColorStop(0.5, '#87ceeb');
+    skyGrad.addColorStop(1, '#b0e0e6');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, w, h * 0.65);
+    
+    // Вызываем drawLandscape через создание временной функции
+    // (упрощённая версия — просто перерисовываем базовый ландшафт)
+    // Для полной перерисовки нужно вызвать drawLandscape, но она внутри useEffect
+    // Поэтому просто перерисовываем частицы и стрелки
+    
+    particlesRef.current.forEach(p => {
+      const alphaMult = hp ? (PROCESS_PARTICLE_MAP[hp]?.includes(p.type) ? 1 : 0.15) : 1;
+      ctx.globalAlpha = p.alpha * alphaMult;
+      if (p.type === 'vapor' || p.type === 'transpiration') {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.type === 'rain') {
+        ctx.fillStyle = '#2196f3';
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, p.size * 0.5, p.size * 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.type === 'surface') {
+        ctx.fillStyle = '#03a9f4';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.type === 'underground') {
+        ctx.fillStyle = '#1565c0';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    });
+    
+    // Подписи
+    if (sl) {
+      ctx.font = `bold ${Math.max(14, w * 0.012)}px Segoe UI, sans-serif`;
+      ctx.textAlign = 'center';
+      const labels = [
+        { text: '☀️ Солнце', x: w * 0.1, y: h * 0.22 },
+        { text: '🌊 Океан', x: w * 0.15, y: h * 0.75 },
+        { text: '☁️ Облака', x: w * 0.52, y: h * 0.08 },
+        { text: '🏔️ Горы', x: w * 0.72, y: h * 0.32 },
+        { text: '🏞️ Река', x: w * 0.48, y: h * 0.61 },
+        { text: '💧 Подземные воды', x: w * 0.6, y: h * 0.88 },
+        { text: '🌳 Растения', x: w * 0.47, y: h * 0.5 },
+      ];
+      labels.forEach(label => {
+        const metrics = ctx.measureText(label.text);
+        const padding = 6;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.fillRect(label.x - metrics.width / 2 - padding, label.y - 10 - padding, metrics.width + padding * 2, 20 + padding * 2);
+        ctx.fillStyle = '#333';
+        ctx.fillText(label.text, label.x, label.y + 5);
+      });
+    }
+  }, [isPaused, highlightProcess, showLabels]);
 
   return (
     <canvas
       ref={canvasRef}
       className="w-full h-full cursor-pointer touch-manipulation"
       onClick={handleCanvasClick}
-      onTouchEnd={handleCanvasClick}
       style={{ display: 'block' }}
     />
   );

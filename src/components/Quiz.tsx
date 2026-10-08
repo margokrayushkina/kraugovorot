@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useAudio } from '../hooks/useAudio';
 
 interface QuizProps {
   onClose: () => void;
+  soundEnabled?: boolean;
 }
 
 interface SlotState {
@@ -21,7 +23,8 @@ const INITIAL_SLOTS: SlotState[] = [
 
 const ANSWERS = ['Испарение', 'Конденсация', 'Осадки', 'Сток', 'Инфильтрация', 'Транспирация'];
 
-export default function Quiz({ onClose }: QuizProps) {
+export default function Quiz({ onClose, soundEnabled = false }: QuizProps) {
+  const { playSuccess, playError } = useAudio();
   const [slots, setSlots] = useState<SlotState[]>(INITIAL_SLOTS);
   const [draggedAnswer, setDraggedAnswer] = useState<string | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
@@ -36,8 +39,9 @@ export default function Quiz({ onClose }: QuizProps) {
 
   const isAnswerUsed = (answer: string) => usedAnswers.includes(answer);
 
-  const handleDragStart = (answer: string) => {
+  const handleDragStart = (e: React.DragEvent, answer: string) => {
     if (isAnswerUsed(answer)) return;
+    e.dataTransfer.setData('text/plain', answer);
     setDraggedAnswer(answer);
   };
 
@@ -50,10 +54,12 @@ export default function Quiz({ onClose }: QuizProps) {
     setDragOverSlot(null);
   };
 
-  const handleDrop = (slotId: string) => {
-    if (!draggedAnswer) return;
+  const handleDrop = (e: React.DragEvent, slotId: string) => {
+    e.preventDefault();
+    const answer = e.dataTransfer.getData('text/plain') || draggedAnswer;
+    if (!answer) return;
     // Не позволяем разместить уже использованный ответ в новый слот
-    if (isAnswerUsed(draggedAnswer)) {
+    if (isAnswerUsed(answer)) {
       setDraggedAnswer(null);
       setDragOverSlot(null);
       return;
@@ -61,8 +67,8 @@ export default function Quiz({ onClose }: QuizProps) {
 
     setSlots(prev => prev.map(slot => {
       if (slot.id === slotId && !slot.filledAnswer) {
-        const isCorrect = slot.correctAnswer === draggedAnswer;
-        return { ...slot, filledAnswer: draggedAnswer, isCorrect };
+        const isCorrect = slot.correctAnswer === answer;
+        return { ...slot, filledAnswer: answer, isCorrect };
       }
       return slot;
     }));
@@ -119,6 +125,9 @@ export default function Quiz({ onClose }: QuizProps) {
     setScore(correctCount);
     if (correctCount === 4) {
       setShowSuccess(true);
+      if (soundEnabled) playSuccess();
+    } else if (soundEnabled) {
+      playError();
     }
   };
 
@@ -187,7 +196,7 @@ export default function Quiz({ onClose }: QuizProps) {
                   }`}
                   onDragOver={(e) => handleDragOver(e, slot.id)}
                   onDragLeave={handleDragLeave}
-                  onDrop={() => handleDrop(slot.id)}
+                  onDrop={(e) => handleDrop(e, slot.id)}
                   onClick={() => handleSlotClick(slot.id)}
                 >
                   <div className="absolute -top-3 -left-2 w-7 h-7 bg-gray-700 text-white rounded-full flex items-center justify-center text-sm font-bold">
@@ -235,7 +244,7 @@ export default function Quiz({ onClose }: QuizProps) {
                   <div
                     key={answer}
                     draggable={!used}
-                    onDragStart={() => handleDragStart(answer)}
+                    onDragStart={(e) => handleDragStart(e, answer)}
                     onClick={() => handleAnswerClick(answer)}
                     className={`px-4 py-3 rounded-xl text-sm md:text-base font-bold transition-all min-h-[60px] select-none ${
                       used

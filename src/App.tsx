@@ -108,7 +108,7 @@ export default function App() {
 
       {/* Модальные окна */}
       {screen === 'glossary' && <Glossary onClose={handleCloseModal} />}
-      {screen === 'quiz' && <Quiz onClose={handleCloseModal} />}
+      {screen === 'quiz' && <Quiz onClose={handleCloseModal} soundEnabled={soundEnabled} />}
     </div>
   );
 }
