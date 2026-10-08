@@ -65,39 +65,5 @@ export function useAudio() {
     } catch (e) { /* ignore */ }
   }, [getAudioContext]);
 
-  // Звук воды (белый шум, для фона)
-  const playWaterAmbient = useCallback((enabled: boolean) => {
-    try {
-      const ctx = getAudioContext();
-      if (!enabled) return;
-      // Создаём короткий шумовой буфер
-      const bufferSize = ctx.sampleRate * 2;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * 0.02;
-      }
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(500, ctx.currentTime);
-
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
-
-      source.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      source.start(ctx.currentTime);
-
-      // Остановить через 2 секунды (короткий эффект)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2);
-      source.stop(ctx.currentTime + 2);
-    } catch (e) { /* ignore */ }
-  }, [getAudioContext]);
-
-  return { playClick, playSuccess, playError, playWaterAmbient };
+  return { playClick, playSuccess, playError };
 }

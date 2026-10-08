@@ -113,19 +113,4 @@ export const glossaryItems: GlossaryItem[] = [
   }
 ];
 
-// Данные для мини-игры
-export interface QuizSlot {
-  id: string;
-  correctAnswer: string;
-  position: { x: number; y: number };
-  label: string;
-}
 
-export const quizSlots: QuizSlot[] = [
-  { id: 'slot1', correctAnswer: 'Испарение', position: { x: 15, y: 60 }, label: 'Вода → Пар' },
-  { id: 'slot2', correctAnswer: 'Конденсация', position: { x: 35, y: 20 }, label: 'Пар → Облака' },
-  { id: 'slot3', correctAnswer: 'Осадки', position: { x: 60, y: 30 }, label: 'Облака → Дождь' },
-  { id: 'slot4', correctAnswer: 'Сток', position: { x: 80, y: 70 }, label: 'Дождь → Река → Океан' },
-];
-
-export const quizAnswers = ['Испарение', 'Конденсация', 'Осадки', 'Сток', 'Инфильтрация', 'Транспирация'];
